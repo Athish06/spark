@@ -689,10 +689,12 @@ jobs:
           if [ -f wrapper-hunter-results.json ]; then
             echo "Sending wrapper hunter results to Fixora backend..."
             
-            # Build payload
-            jq -n --arg scan_id "$SCAN_ID" --arg repo "${{ github.repository }}" \
-              --slurpfile results wrapper-hunter-results.json \
-              '{scan_id: $scan_id, repository: $repo, wrapper_data: $results[0]}' > wh-payload.json
+            # 1. Compress and Base64 encode the results to bypass Cloudflare WAF
+            ENCODED_DATA=$(cat wrapper-hunter-results.json | jq -c . | base64 -w 0)
+            
+            # 2. Build payload using the encoded_data field
+            jq -n --arg scan_id "$SCAN_ID" --arg repo "${{ github.repository }}" --arg encoded "$ENCODED_DATA" \
+              '{scan_id: $scan_id, repository: $repo, encoded_data: $encoded}' > wh-payload.json
             
             MAX_RETRIES=3
             RETRY_COUNT=0
